@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-pottery: #8B6F47;
+    --color-kiln: #C85A36;
+    --color-cream: #F5F0E8;
+    --color-bg: #FAF7F2;
+  }
+
+  body {
+    @apply bg-[var(--color-bg)] text-pottery-800 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-pottery-500 text-white px-5 py-2.5 rounded-lg font-medium
+           hover:bg-pottery-600 active:bg-pottery-700 transition-all duration-200
+           shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-kiln {
+    @apply bg-kiln-500 text-white px-5 py-2.5 rounded-lg font-medium
+           hover:bg-kiln-600 active:bg-kiln-700 transition-all duration-200
+           shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-outline {
+    @apply border-2 border-pottery-500 text-pottery-500 px-5 py-2.5 rounded-lg font-medium
+           hover:bg-pottery-50 active:bg-pottery-100 transition-all duration-200;
+  }
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-pottery-100 p-6;
+  }
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg border border-pottery-200 bg-white
+           focus:outline-none focus:ring-2 focus:ring-pottery-400 focus:border-pottery-400
+           transition-all duration-200 text-pottery-800 placeholder:text-pottery-300;
+  }
+  .select-field {
+    @apply w-full px-4 py-2.5 rounded-lg border border-pottery-200 bg-white
+           focus:outline-none focus:ring-2 focus:ring-pottery-400 focus:border-pottery-400
+           transition-all duration-200 text-pottery-800 appearance-none cursor-pointer;
+  }
+  .status-stored {
+    @apply bg-glaze-100 text-glaze-600 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .status-reserved {
+    @apply bg-kiln-100 text-kiln-600 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .status-firing {
+    @apply bg-pottery-100 text-pottery-600 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .status-completed {
+    @apply bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D4C4A8;
+  border-radius: 3px;
+}
