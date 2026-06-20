@@ -35,6 +35,19 @@ export function updateBodyStatus(id: number, status: BodyStatus): Promise<BodyRe
   })
 }
 
+export function deleteBody(id: number): Promise<void> {
+  return request<void>(`/api/bodies/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export function batchFireBodies(bodyIds: number[]): Promise<{ updatedBodies: BodyRecord[]; updatedReservations: Reservation[] }> {
+  return request<{ updatedBodies: BodyRecord[]; updatedReservations: Reservation[] }>('/api/bodies/batch-fire', {
+    method: 'POST',
+    body: JSON.stringify({ bodyIds }),
+  })
+}
+
 export function fetchKilnSlots(startDate: string, endDate: string): Promise<KilnSlot[]> {
   return request<KilnSlot[]>(`/api/kiln/slots?startDate=${startDate}&endDate=${endDate}`)
 }

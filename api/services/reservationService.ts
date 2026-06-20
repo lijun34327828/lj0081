@@ -1,6 +1,12 @@
 import { db } from '../db.js'
-import type { KilnSlot, CreateReservationRequest, Reservation, KilnPeriod } from '../../shared/types.js'
+import type { KilnSlot, CreateReservationRequest, Reservation, KilnPeriod, BodySize } from '../../shared/types.js'
 import { getBodyById, updateBodyStatus } from './bodyService.js'
+
+const SIZE_WEIGHT: Record<BodySize, number> = {
+  small: 1,
+  medium: 2,
+  large: 3,
+}
 
 export function getKilnSlots(startDate: string, endDate: string): KilnSlot[] {
   const kilnConfigs = db.prepare('SELECT period, total_capacity FROM kiln_config').all() as { period: KilnPeriod; total_capacity: number }[]
@@ -11,15 +17,16 @@ export function getKilnSlots(startDate: string, endDate: string): KilnSlot[] {
   const end = new Date(endDate)
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dateStr = d.toISOString().split('T')[0]
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
     for (const config of kilnConfigs) {
-      const row = db.prepare(`
-        SELECT COUNT(*) as used FROM reservations
-        WHERE date = ? AND period = ? AND status != 'cancelled'
-      `).get(dateStr, config.period) as { used: number }
+      const rows = db.prepare(`
+        SELECT b.size FROM reservations r
+        JOIN bodies b ON r.body_id = b.id
+        WHERE r.date = ? AND r.period = ? AND r.status != 'cancelled'
+      `).all(dateStr, config.period) as { size: BodySize }[]
 
-      const usedCapacity = row.used
+      const usedCapacity = rows.reduce((sum, r) => sum + (SIZE_WEIGHT[r.size] || 1), 0)
       const availableCapacity = config.total_capacity - usedCapacity
 
       slots.push({
@@ -45,30 +52,41 @@ export function createReservation(data: CreateReservationRequest): Reservation {
     throw new Error('该陶坯已完成，无法预约')
   }
 
-  const kilnConfig = db.prepare('SELECT total_capacity FROM kiln_config WHERE period = ?').get(data.period) as { total_capacity: number } | undefined
-  if (!kilnConfig) {
-    throw new Error('无效的窑炉时段')
-  }
+  const bodyWeight = SIZE_WEIGHT[body.size] || 1
 
-  const usedRow = db.prepare(`
-    SELECT COUNT(*) as used FROM reservations
-    WHERE date = ? AND period = ? AND status != 'cancelled'
-  `).get(data.date, data.period) as { used: number }
+  const insertReservation = db.transaction(() => {
+    const kilnConfig = db.prepare('SELECT total_capacity FROM kiln_config WHERE period = ?').get(data.period) as { total_capacity: number } | undefined
+    if (!kilnConfig) {
+      throw new Error('无效的窑炉时段')
+    }
 
-  if (usedRow.used >= kilnConfig.total_capacity) {
-    throw new Error('该时段已满，无法预约')
-  }
+    const rows = db.prepare(`
+      SELECT b.size FROM reservations r
+      JOIN bodies b ON r.body_id = b.id
+      WHERE r.date = ? AND r.period = ? AND r.status != 'cancelled'
+    `).all(data.date, data.period) as { size: BodySize }[]
 
-  const stmt = db.prepare(`
-    INSERT INTO reservations (body_id, date, period, status)
-    VALUES (?, ?, ?, 'pending')
-  `)
+    const usedCapacity = rows.reduce((sum, r) => sum + (SIZE_WEIGHT[r.size] || 1), 0)
 
-  const result = stmt.run(data.bodyId, data.date, data.period)
+    if (usedCapacity + bodyWeight > kilnConfig.total_capacity) {
+      throw new Error(`该时段剩余容量不足，当前已占用 ${usedCapacity}/${kilnConfig.total_capacity}，本次需 ${bodyWeight}，剩余 ${kilnConfig.total_capacity - usedCapacity}`)
+    }
 
-  db.prepare("UPDATE bodies SET reservation_id = ?, status = 'reserved', updated_at = datetime('now') WHERE id = ?").run(result.lastInsertRowid, data.bodyId)
+    const stmt = db.prepare(`
+      INSERT INTO reservations (body_id, date, period, status)
+      VALUES (?, ?, ?, 'pending')
+    `)
 
-  return getReservationById(result.lastInsertRowid as number)!
+    const result = stmt.run(data.bodyId, data.date, data.period)
+
+    db.prepare("UPDATE bodies SET reservation_id = ?, status = 'reserved', updated_at = datetime('now') WHERE id = ?").run(result.lastInsertRowid, data.bodyId)
+
+    return result.lastInsertRowid as number
+  })
+
+  const reservationId = insertReservation()
+
+  return getReservationById(reservationId)!
 }
 
 export function getReservations(): Reservation[] {

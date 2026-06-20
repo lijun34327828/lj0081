@@ -2,6 +2,23 @@ import { db } from '../db.js'
 import type { DashboardStats, BodyRecord } from '../../shared/types.js'
 import { FREE_STORAGE_DAYS } from './bodyService.js'
 
+function getLocalDateStr(): string {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function getLocalDateStrOffset(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
 export function getStats(): DashboardStats {
   const totalBodies = (db.prepare('SELECT COUNT(*) as count FROM bodies').get() as { count: number }).count
   const storedCount = (db.prepare("SELECT COUNT(*) as count FROM bodies WHERE status = 'stored'").get() as { count: number }).count
@@ -9,10 +26,8 @@ export function getStats(): DashboardStats {
   const firingCount = (db.prepare("SELECT COUNT(*) as count FROM bodies WHERE status = 'firing'").get() as { count: number }).count
   const completedCount = (db.prepare("SELECT COUNT(*) as count FROM bodies WHERE status = 'completed'").get() as { count: number }).count
 
-  const today = new Date().toISOString().split('T')[0]
-  const expiringTargetDate = new Date()
-  expiringTargetDate.setDate(expiringTargetDate.getDate() + 3)
-  const expiringTargetStr = expiringTargetDate.toISOString().split('T')[0]
+  const today = getLocalDateStr()
+  const expiringTargetStr = getLocalDateStrOffset(3)
 
   const expiringCount = (db.prepare(`
     SELECT COUNT(*) as count FROM bodies
@@ -38,10 +53,8 @@ export function getStats(): DashboardStats {
 }
 
 export function getExpiringBodies(): BodyRecord[] {
-  const today = new Date().toISOString().split('T')[0]
-  const expiringTargetDate = new Date()
-  expiringTargetDate.setDate(expiringTargetDate.getDate() + 3)
-  const expiringTargetStr = expiringTargetDate.toISOString().split('T')[0]
+  const today = getLocalDateStr()
+  const expiringTargetStr = getLocalDateStrOffset(3)
 
   const rows = db.prepare(`
     SELECT * FROM bodies

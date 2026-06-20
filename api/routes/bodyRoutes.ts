@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { createBody, getBodies, getBodyById, updateBodyStatus } from '../services/bodyService.js'
+import { createBody, getBodies, getBodyById, updateBodyStatus, deleteBody, batchFireBodies } from '../services/bodyService.js'
 import type { BodyStatus } from '../../shared/types.js'
 
 const router = Router()
@@ -7,14 +7,28 @@ const router = Router()
 router.post('/', (req: Request, res: Response): void => {
   try {
     const { bodyNo, size, glazeType, customerName, customerPhone } = req.body
-    if (!bodyNo || !size || !glazeType || !customerName || !customerPhone) {
+    if (!size || !glazeType || !customerName || !customerPhone) {
       res.status(400).json({ success: false, error: '缺少必填字段' })
       return
     }
-    const body = createBody({ bodyNo, size, glazeType, customerName, customerPhone })
+    const body = createBody({ bodyNo: bodyNo || '', size, glazeType, customerName, customerPhone })
     res.status(201).json({ success: true, data: body })
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+router.post('/batch-fire', (req: Request, res: Response): void => {
+  try {
+    const { bodyIds } = req.body
+    if (!Array.isArray(bodyIds) || bodyIds.length === 0) {
+      res.status(400).json({ success: false, error: '请提供坯体编号数组' })
+      return
+    }
+    const result = batchFireBodies(bodyIds)
+    res.json({ success: true, data: result })
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message })
   }
 })
 
@@ -58,6 +72,16 @@ router.put('/:id/status', (req: Request, res: Response): void => {
     res.json({ success: true, data: body })
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+router.delete('/:id', (req: Request, res: Response): void => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    deleteBody(id)
+    res.json({ success: true, data: null })
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message })
   }
 })
 

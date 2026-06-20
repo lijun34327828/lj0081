@@ -5,8 +5,8 @@ import { fetchExpiringBodies, fetchPendingBodies } from '@/lib/api'
 import type { BodyRecord } from '../../shared/types'
 import StatusBadge from '@/components/StatusBadge'
 
-function getStorageDays(createdAt: string): number {
-  const start = new Date(createdAt)
+function getStorageDays(storageStartDate: string): number {
+  const start = new Date(storageStartDate)
   const now = new Date()
   return Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
 }
@@ -64,7 +64,7 @@ export default function Home() {
           ) : (
             <div className="space-y-2">
               {expiringBodies.map((body) => {
-                const days = getStorageDays(body.createdAt)
+                const days = getStorageDays(body.storageStartDate)
                 const isOverdue = days > 30
                 return (
                   <div

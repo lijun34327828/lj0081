@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, Calendar } from 'lucide-react'
 import useStore from '@/store/useStore'
-import { createBody, updateBodyStatus } from '@/lib/api'
-import type { BodySize, GlazeType, BodyStatus, BodyRecord } from '../../shared/types'
+import { createBody, deleteBody } from '@/lib/api'
+import type { BodySize, GlazeType, BodyStatus } from '../../shared/types'
 import StatusBadge from '@/components/StatusBadge'
 
 const sizeOptions: { value: BodySize; label: string }[] = [
@@ -26,42 +26,25 @@ const statusFilters: { value: BodyStatus | 'all'; label: string }[] = [
   { value: 'completed', label: '已完成' },
 ]
 
-function getStorageDays(createdAt: string): number {
-  const start = new Date(createdAt)
+function getStorageDays(storageStartDate: string): number {
+  const start = new Date(storageStartDate)
   const now = new Date()
   return Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-function generateBodyNo(bodies: BodyRecord[]): string {
-  const today = new Date()
-  const dateStr = today.getFullYear().toString() +
-    String(today.getMonth() + 1).padStart(2, '0') +
-    String(today.getDate()).padStart(2, '0')
-  const prefix = `PT${dateStr}`
-  const todayBodies = bodies.filter(b => b.bodyNo.startsWith(prefix))
-  const seq = todayBodies.length + 1
-  return `${prefix}${String(seq).padStart(3, '0')}`
-}
-
 export default function Register() {
   const { bodies, fetchBodies, loading } = useStore()
+  const [bodyNo, setBodyNo] = useState('')
   const [size, setSize] = useState<BodySize>('small')
   const [glazeType, setGlazeType] = useState<GlazeType>('bisque')
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [statusFilter, setStatusFilter] = useState<BodyStatus | 'all'>('all')
   const [submitting, setSubmitting] = useState(false)
-  const [generatedNo, setGeneratedNo] = useState('')
 
   useEffect(() => {
     fetchBodies()
   }, [])
-
-  useEffect(() => {
-    if (bodies.length >= 0) {
-      setGeneratedNo(generateBodyNo(bodies))
-    }
-  }, [bodies])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,7 +52,7 @@ export default function Register() {
     setSubmitting(true)
     try {
       await createBody({
-        bodyNo: generatedNo,
+        bodyNo: bodyNo.trim(),
         size,
         glazeType,
         customerName: customerName.trim(),
@@ -77,6 +60,7 @@ export default function Register() {
       })
       setCustomerName('')
       setCustomerPhone('')
+      setBodyNo('')
       setSize('small')
       setGlazeType('bisque')
       await fetchBodies()
@@ -90,10 +74,10 @@ export default function Register() {
   const handleDelete = async (id: number) => {
     if (!confirm('确定要删除此坯体记录吗？')) return
     try {
-      await updateBodyStatus(id, 'completed')
+      await deleteBody(id)
       await fetchBodies()
     } catch (err: any) {
-      alert(err.message || '操作失败')
+      alert(err.message || '删除失败')
     }
   }
 
@@ -110,9 +94,10 @@ export default function Register() {
             <label className="block text-sm font-medium text-pottery-600 mb-1">坯体编号</label>
             <input
               type="text"
-              value={generatedNo}
-              disabled
-              className="input-field bg-pottery-50 text-pottery-400 cursor-not-allowed"
+              value={bodyNo}
+              onChange={(e) => setBodyNo(e.target.value)}
+              placeholder="留空自动生成"
+              className="input-field"
             />
           </div>
           <div>
@@ -219,7 +204,7 @@ export default function Register() {
               </thead>
               <tbody>
                 {filteredBodies.map((body) => {
-                  const days = getStorageDays(body.createdAt)
+                  const days = getStorageDays(body.storageStartDate)
                   const sizeLabel = sizeOptions.find(s => s.value === body.size)?.label ?? body.size
                   const glazeLabel = glazeOptions.find(g => g.value === body.glazeType)?.label ?? body.glazeType
                   return (
